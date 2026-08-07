@@ -60,16 +60,47 @@ genuinely signed by UIDAI" - not "is this person's ID currently valid."
 
 ## What it can't do
 
-- Confirm a card against UIDAI's live database (needs government
-  registration + the person's real-time consent - not obtainable from an
-  uploaded photo, by design).
-- Recover data from a QR code that's genuinely too blurry or damaged to
-  scan.
-- Get the full 12-digit Aadhaar number from a modern "Secure QR" card -
-  UIDAI's own format simply never includes it.
-- Confirm the signature on a very old (pre-2018) card's QR code - that
-  format was never signed by UIDAI in the first place. (A PDF-level
-  signature check can sometimes fill this gap - see above.)
+These are structural limits, not things a future code change fixes:
+
+- **Confirm a card against UIDAI's live database.** That needs UIDAI's
+  Authentication API, which requires government registration, a private
+  network connection, and - the part no amount of engineering gets around -
+  the actual Aadhaar holder's real-time consent (OTP or biometric) at the
+  moment of checking. An already-uploaded photo of someone who isn't
+  present can never provide that.
+- **Get the full 12-digit Aadhaar number from a modern "Secure QR" card.**
+  UIDAI's own format simply never includes it - not a bug, not something
+  we're missing.
+- **Confirm the signature on a very old (pre-2018) card's QR code.** That
+  format was never signed by UIDAI in the first place - there's nothing to
+  check. (A PDF-level signature check can sometimes fill this gap for
+  someone who has the e-Aadhaar PDF, not just a photo of the card.)
+- **Recover data from a QR code that's genuinely too blurry or damaged to
+  scan.** Tested against 3 independent decode engines - this is a real
+  resolution/physics limit, not a code limit.
+- **Get an instant test API key from a KYC vendor** (Surepass, Digio,
+  etc.) for real Aadhaar authentication. Checked directly - every one of
+  them still requires the same ~30-day UIDAI Sub-AUA approval process,
+  not just a signup form.
+- **Confirm a card belongs to a specific, currently-alive person.** That's
+  outside what any offline document check can ever prove, no matter how
+  good the QR/OCR/face-match logic gets.
+
+## What could still be built
+
+- **Offline e-KYC XML/ZIP signature check** - a real fallback for
+  UIDAI-signed proof that doesn't need live consent (the resident
+  generates it themselves, once). Not built yet.
+- **Prove the PDF signature check against a real e-Aadhaar PDF.** Built
+  and self-tested, but only against a throwaway test certificate so far -
+  needs one genuine e-Aadhaar PDF to confirm it actually chains to
+  UIDAI/NIC's real certificate.
+- **More UIDAI signing certificates**, to widen the QR signature check
+  beyond the one cert vintage currently proven (Feb 2021 - Feb 2024).
+- **3+ page PDF testing** - only 2-page (front/back) scans are confirmed
+  working today.
+- **Better name/address OCR** - the weakest extracted fields, since
+  neither has a reliable printed label to anchor on.
 
 ## Privacy
 
