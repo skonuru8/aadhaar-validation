@@ -1,0 +1,9 @@
+opencv-python-headless
+pyzbar
+zxing-cpp
+cryptography
+defusedxml
+pillow-heif
+pytesseract
+pymupdf
+pyhanko

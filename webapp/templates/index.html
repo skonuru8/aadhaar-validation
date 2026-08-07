@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aadhaar Document Validator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --color-primary: #1E293B;
+    --color-on-primary: #FFFFFF;
+    --color-secondary: #334155;
+    --color-accent: #2563EB;
+    --color-background: #F8FAFC;
+    --color-foreground: #0F172A;
+    --color-muted: #F1F2F3;
+    --color-muted-fg: #64748B;
+    --color-border: #E4E5E7;
+    --color-success: #16A34A;
+    --color-success-bg: #F0FDF4;
+    --color-success-border: #BBF7D0;
+    --color-destructive: #DC2626;
+    --color-destructive-bg: #FEF2F2;
+    --color-destructive-border: #FECACA;
+    --color-warning: #B45309;
+    --color-warning-bg: #FFFBEB;
+    --color-warning-border: #FDE68A;
+    --radius: 12px;
+    --shadow-sm: 0 1px 2px rgba(15,23,42,0.06);
+    --shadow-md: 0 4px 12px rgba(15,23,42,0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-background: #0B1220;
+      --color-foreground: #F1F5F9;
+      --color-primary: #E2E8F0;
+      --color-on-primary: #0F172A;
+      --color-secondary: #CBD5E1;
+      --color-muted: #17202E;
+      --color-muted-fg: #94A3B8;
+      --color-border: #26303F;
+      --color-success-bg: #0B2015;
+      --color-success-border: #14532D;
+      --color-destructive-bg: #240D0D;
+      --color-destructive-border: #7F1D1D;
+      --color-warning-bg: #221806;
+      --color-warning-border: #78350F;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--color-background);
+    color: var(--color-foreground);
+    line-height: 1.5;
+    font-size: 16px;
+    min-height: 100dvh;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header { margin-bottom: 28px; }
+  header h1 { font-size: 22px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--color-muted-fg); font-size: 14px; max-width: 60ch; }
+
+  .card {
+    background: var(--color-background);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* --- Upload zone --- */
+  #dropzone {
+    padding: 40px 20px;
+    text-align: center;
+    border: 2px dashed var(--color-border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color 200ms ease, background-color 200ms ease;
+  }
+  #dropzone:hover, #dropzone:focus-visible, #dropzone.dragover {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+  }
+  #dropzone:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+  #dropzone svg { width: 36px; height: 36px; color: var(--color-muted-fg); margin-bottom: 12px; }
+  #dropzone .title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  #dropzone .hint { font-size: 13px; color: var(--color-muted-fg); }
+  #fileInput { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+  #chooseBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 10px 18px;
+    min-height: 44px;
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 150ms ease;
+  }
+  #chooseBtn:hover { opacity: 0.88; }
+  #chooseBtn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+  /* --- Loading --- */
+  #loading { display: none; align-items: center; gap: 12px; padding: 24px; }
+  #loading.active { display: flex; }
+  .spinner {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2.5px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    animation: spin 800ms linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading .text { font-size: 14px; }
+  #loading .text .sub { color: var(--color-muted-fg); font-size: 13px; margin-top: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation-duration: 1.6s; }
+    * { transition-duration: 0.01ms !important; }
+  }
+
+  /* --- Results --- */
+  #results { display: none; margin-top: 24px; }
+  #results.active { display: block; }
+
+  .status-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+    border-radius: var(--radius);
+    border: 1px solid;
+    margin-bottom: 20px;
+  }
+  .status-banner.success { background: var(--color-success-bg); border-color: var(--color-success-border); }
+  .status-banner.destructive { background: var(--color-destructive-bg); border-color: var(--color-destructive-border); }
+  .status-banner.warning { background: var(--color-warning-bg); border-color: var(--color-warning-border); }
+  .status-banner svg.status-icon { width: 24px; height: 24px; flex-shrink: 0; margin-top: 1px; }
+  .status-banner.success svg.status-icon { color: var(--color-success); }
+  .status-banner.destructive svg.status-icon { color: var(--color-destructive); }
+  .status-banner.warning svg.status-icon { color: var(--color-warning); }
+  .status-banner .status-title { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+  .status-banner .status-desc { font-size: 13.5px; color: var(--color-secondary); margin-top: 4px; }
+
+  .info-btn {
+    background: none; border: none; padding: 0; cursor: pointer;
+    width: 16px; height: 16px; color: var(--color-muted-fg);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .info-btn:hover { color: var(--color-accent); }
+  .info-btn svg { width: 15px; height: 15px; }
+
+  .tooltip {
+    display: none;
+    font-size: 12.5px;
+    color: var(--color-secondary);
+    background: var(--color-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 10px;
+  }
+  .tooltip.active { display: block; }
+
+  section.block { margin-bottom: 22px; }
+  section.block h2 {
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-muted-fg);
+    margin: 0 0 10px;
+  }
+
+  .check-table { border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
+  .check-row {
+    display: grid;
+    grid-template-columns: 96px 1fr 1fr 28px;
+    gap: 10px;
+    align-items: center;
+    padding: 11px 14px;
+    font-size: 13.5px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .check-row:last-child { border-bottom: none; }
+  .check-row .label { font-weight: 600; color: var(--color-secondary); }
+  .check-row .val { overflow-wrap: anywhere; }
+  .check-row .val.card-val { color: var(--color-muted-fg); }
+  .check-row svg.match-icon { width: 18px; height: 18px; }
+  .check-row svg.match-icon.yes { color: var(--color-success); }
+  .check-row svg.match-icon.no { color: var(--color-destructive); }
+  .check-row svg.match-icon.unknown { color: var(--color-muted-fg); }
+  .col-heading {
+    display: grid;
+    grid-template-columns: 96px 1fr 1fr 28px;
+    gap: 10px;
+    padding: 8px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-muted-fg);
+  }
+
+  .field-grid { display: grid; gap: 8px; }
+  .field-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .field-row .label { color: var(--color-muted-fg); font-weight: 500; flex-shrink: 0; }
+  .field-row .value { text-align: right; overflow-wrap: anywhere; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    padding: 2px 7px; border-radius: 5px; margin-left: 8px;
+  }
+  .badge.confirmed { background: var(--color-success-bg); color: var(--color-success); border: 1px solid var(--color-success-border); }
+  .badge.unconfirmed { background: var(--color-warning-bg); color: var(--color-warning); border: 1px solid var(--color-warning-border); }
+
+  details.raw { margin-top: 8px; }
+  details.raw summary {
+    cursor: pointer; font-size: 12.5px; color: var(--color-muted-fg); font-weight: 600;
+    padding: 8px 0;
+  }
+  details.raw pre {
+    background: var(--color-muted); border: 1px solid var(--color-border); border-radius: 8px;
+    padding: 12px; font-size: 11.5px; overflow-x: auto; max-height: 320px;
+  }
+
+  .reset-btn {
+    margin-top: 20px;
+    background: none; border: 1px solid var(--color-border); color: var(--color-secondary);
+    padding: 9px 16px; min-height: 44px; border-radius: 8px; font-family: inherit;
+    font-size: 13.5px; font-weight: 600; cursor: pointer;
+  }
+  .reset-btn:hover { background: var(--color-muted); }
+  .reset-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+  .error-text { color: var(--color-destructive); font-size: 13.5px; margin-top: 10px; }
+
+  @media (max-width: 480px) {
+    .check-row, .col-heading { grid-template-columns: 74px 1fr 1fr 22px; font-size: 12.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Aadhaar Document Validator</h1>
+    <p>Upload a photo of an Aadhaar card. If the QR decodes, its data is cross-checked against what's printed on the card — matching name, DOB, gender, and face photo. If the QR can't be read, you'll see extracted details instead, clearly marked as not validated.</p>
+  </header>
+
+  <div class="card" id="uploadCard">
+    <div id="dropzone" tabindex="0" role="button" aria-label="Upload Aadhaar card image">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+      <div class="title">Drop an Aadhaar image or PDF here</div>
+      <div class="hint">JPG, PNG, HEIC, AVIF, PDF supported &middot; front/back or combined &middot; PDF uses page 1</div>
+      <button type="button" id="chooseBtn">Choose file</button>
+    </div>
+    <input type="file" id="fileInput" accept="image/*,.heic,.heif,.pdf,application/pdf" aria-label="Choose Aadhaar image or PDF file">
+  </div>
+
+  <div id="loading" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <div class="text">
+      Analyzing card&hellip;
+      <div class="sub">Decoding QR, cross-checking fields, comparing photos — usually 1–5 seconds</div>
+    </div>
+  </div>
+
+  <div id="results" aria-live="polite"></div>
+
+  <button type="button" class="reset-btn" id="resetBtn" style="display:none;">Upload another card</button>
+</div>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const chooseBtn = document.getElementById('chooseBtn');
+const loading = document.getElementById('loading');
+const results = document.getElementById('results');
+const uploadCard = document.getElementById('uploadCard');
+const resetBtn = document.getElementById('resetBtn');
+
+const ICONS = {
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  minus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>',
+  shieldCheck: '<svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M9 12l2 2 4-4"/></svg>',
+  shieldX: '<svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M9.5 9.5l5 5M14.5 9.5l-5 5"/></svg>',
+  alertTriangle: '<svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+};
+
+function withClass(svgString, cls) {
+  return svgString.replace('<svg ', `<svg class="${cls}" `);
+}
+
+function matchIcon(match) {
+  if (match === true) return withClass(ICONS.check, 'match-icon yes');
+  if (match === false) return withClass(ICONS.x, 'match-icon no');
+  return withClass(ICONS.minus, 'match-icon unknown');
+}
+
+function esc(s) {
+  if (s === null || s === undefined) return '<span style="color:var(--color-muted-fg)">—</span>';
+  const div = document.createElement('div');
+  div.textContent = String(s);
+  return div.innerHTML;
+}
+
+chooseBtn.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+});
+['dragenter', 'dragover'].forEach(evt =>
+  dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); })
+);
+['dragleave', 'drop'].forEach(evt =>
+  dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); })
+);
+dropzone.addEventListener('drop', (e) => {
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) uploadFile(fileInput.files[0]);
+});
+resetBtn.addEventListener('click', () => {
+  results.classList.remove('active');
+  results.innerHTML = '';
+  uploadCard.style.display = 'block';
+  resetBtn.style.display = 'none';
+  fileInput.value = '';
+});
+
+async function uploadFile(file) {
+  uploadCard.style.display = 'none';
+  results.classList.remove('active');
+  results.innerHTML = '';
+  resetBtn.style.display = 'none';
+  loading.classList.add('active');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/validate', { method: 'POST', body: formData });
+    const data = await res.json();
+    loading.classList.remove('active');
+    if (!res.ok) {
+      renderError(data);
+    } else {
+      renderResult(data);
+    }
+  } catch (err) {
+    loading.classList.remove('active');
+    renderError({ detail: String(err) });
+  }
+  resetBtn.style.display = 'inline-flex';
+}
+
+function renderError(data) {
+  results.classList.add('active');
+  results.innerHTML = `
+    <div class="status-banner destructive">
+      ${ICONS.alertTriangle}
+      <div>
+        <div class="status-title">Something went wrong</div>
+        <div class="status-desc">${esc(data.detail || data.error || 'Unknown error')}</div>
+      </div>
+    </div>`;
+}
+
+function renderResult(data) {
+  results.classList.add('active');
+  let html = '';
+
+  if (data.qr_status === 'missing_or_unclear' || data.qr_status === 'not_aadhaar_qr') {
+    html += `
+      <div class="status-banner warning">
+        ${ICONS.alertTriangle}
+        <div>
+          <div class="status-title">QR ${data.qr_status === 'not_aadhaar_qr' ? 'is not Aadhaar data' : 'not found'}</div>
+          <div class="status-desc">${esc(data.message)}</div>
+        </div>
+      </div>`;
+    html += pdfSignatureBlock(data.pdf_signature_check);
+    html += renderExtractedOnly(data.extracted);
+  } else {
+    const status = data.validation_status || (data.validated ? 'validated' : 'not_validated');
+
+    // Built from what actually ran, not a fixed claim - a card can validate
+    // via the signature alone (nothing else comparable on that page) just
+    // as validly as via matching demographic fields, and the banner text
+    // shouldn't claim checks that never ran.
+    const passed = [];
+    const failed = [];
+    if (data.signature_check?.valid === true) passed.push('UIDAI signature');
+    const pdfSigTrusted = (data.pdf_signature_check?.signatures || []).some(s => s.trusted && s.intact);
+    if (pdfSigTrusted) passed.push('e-Aadhaar PDF signature');
+    if (data.name_check?.match === true) passed.push('name'); else if (data.name_check?.match === false) failed.push('name');
+    if (data.dob_check?.match === true) passed.push('DOB'); else if (data.dob_check?.match === false) failed.push('DOB');
+    if (data.gender_check?.match === true) passed.push('gender'); else if (data.gender_check?.match === false) failed.push('gender');
+    if (data.face_check?.match === true) passed.push('face photo'); else if (data.face_check?.match === false) failed.push('face photo');
+    if (data.checksum_valid === true) passed.push('UID checksum'); else if (data.checksum_valid === false) failed.push('UID checksum');
+
+    const STATUS_UI = {
+      validated: {
+        bannerClass: 'success', icon: ICONS.shieldCheck, title: 'Validated',
+        desc: passed.length
+          ? `Confirmed via: ${passed.join(', ')}.`
+          : 'The QR\'s data matches what\'s printed on this card.',
+      },
+      not_validated: {
+        bannerClass: 'destructive', icon: ICONS.shieldX, title: 'Not Validated',
+        desc: failed.length
+          ? `Didn't match: ${failed.join(', ')}.`
+          : 'One or more fields, or the face photo, don\'t match between the QR and the printed card.',
+      },
+      inconclusive: {
+        bannerClass: 'warning', icon: ICONS.alertTriangle, title: 'Inconclusive',
+        desc: 'The QR decoded, but this image has nothing comparable on it — no matching face or demographic text (e.g. a QR-only back panel). Nothing was checked, so nothing failed — there\'s just no basis for a verdict from this image alone.',
+      },
+    };
+    const ui = STATUS_UI[status];
+    html += `
+      <div class="status-banner ${ui.bannerClass}">
+        ${ui.icon}
+        <div>
+          <div class="status-title">
+            ${ui.title}
+            <button type="button" class="info-btn" id="infoBtn" aria-expanded="false" aria-label="What does this mean?">${ICONS.info}</button>
+          </div>
+          <div class="status-desc">${ui.desc}</div>
+          <div class="tooltip" id="tooltip">${esc(data.validated_meaning)}</div>
+        </div>
+      </div>`;
+
+    html += `<section class="block"><h2>QR vs. Card</h2><div class="check-table">`;
+    html += `<div class="col-heading"><span>Field</span><span>From QR</span><span>From Card</span><span></span></div>`;
+    html += checkRow('Name', data.name_check?.qr, data.name_check?.card, data.name_check?.match);
+    html += checkRow('DOB', data.dob_check?.qr, data.dob_check?.card, data.dob_check?.match);
+    html += checkRow('Gender', data.gender_check?.qr, data.gender_check?.card, data.gender_check?.match);
+    if (data.face_check) {
+      const sim = data.face_check.cosine_similarity;
+      const simText = sim !== null && sim !== undefined ? `${(sim * 100).toFixed(0)}% similar` : 'n/a';
+      html += checkRow('Face photo', 'QR photo', simText, data.face_check.match);
+    } else {
+      html += checkRow('Face photo', 'No photo in QR', '—', null);
+    }
+    html += checkRow('UID checksum', data.checksum_valid === null ? 'not in QR' : 'Verhoeff', data.checksum_valid === null ? '—' : (data.checksum_valid ? 'valid' : 'invalid'), data.checksum_valid);
+    html += signatureRow(data.signature_check);
+    html += `</div></section>`;
+    html += pdfSignatureBlock(data.pdf_signature_check);
+
+    html += `<section class="block"><h2>Full QR fields</h2><div class="field-grid">`;
+    for (const [k, v] of Object.entries(data.fields || {})) {
+      html += `<div class="field-row"><span class="label">${esc(k)}</span><span class="value">${esc(v)}</span></div>`;
+    }
+    html += `</div></section>`;
+  }
+
+  html += `<details class="raw"><summary>Raw response (debug)</summary><pre>${esc(JSON.stringify(data, null, 2))}</pre></details>`;
+
+  results.innerHTML = html;
+
+  const infoBtn = document.getElementById('infoBtn');
+  if (infoBtn) {
+    infoBtn.addEventListener('click', () => {
+      const tip = document.getElementById('tooltip');
+      const isActive = tip.classList.toggle('active');
+      infoBtn.setAttribute('aria-expanded', String(isActive));
+    });
+  }
+}
+
+function checkRow(label, qrVal, cardVal, match) {
+  return `<div class="check-row">
+    <span class="label">${esc(label)}</span>
+    <span class="val">${esc(qrVal)}</span>
+    <span class="val card-val">${esc(cardVal)}</span>
+    ${matchIcon(match)}
+  </div>`;
+}
+
+function signatureRow(sig) {
+  // Deliberately asymmetric, matching validate_card.py's _check_signature:
+  // True is unambiguous cryptographic proof (green check). False is very
+  // likely just a cert-vintage mismatch, not evidence of forgery - shown
+  // as an amber dash, not a red X, so it doesn't read as "failed" the way
+  // a real demographic mismatch does.
+  if (!sig || !sig.attempted) {
+    return checkRow('UIDAI signature', 'not checked', '—', null);
+  }
+  if (sig.valid === true) {
+    return checkRow('UIDAI signature', sig.cert_used, 'cryptographically confirmed', true);
+  }
+  return `<div class="check-row">
+    <span class="label">UIDAI signature</span>
+    <span class="val">${esc(sig.cert_used)}</span>
+    <span class="val card-val">no match (likely wrong cert vintage, not proof of forgery)</span>
+    <svg class="match-icon unknown" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+  </div>`;
+}
+
+function pdfSignatureBlock(pdfSig) {
+  // Only present for PDF uploads (null for a plain image) - a separate
+  // mechanism from the QR signature check, see pdf_signature_verify.py.
+  // Not yet proven against a real UIDAI/NIC-signed e-Aadhaar PDF, so this
+  // is deliberately framed as "here's what we found", not a pass/fail
+  // claim the way the QR signature row is.
+  if (!pdfSig) return '';
+  if (!pdfSig.has_signature) {
+    return `<section class="block"><h2>PDF document signature</h2>
+      <p class="status-desc">This PDF has no embedded digital signature (a plain scan/print-to-PDF, or a re-saved file - not an untouched e-Aadhaar download).</p>
+    </section>`;
+  }
+  let rows = '';
+  for (const sig of pdfSig.signatures) {
+    if (sig.error) {
+      rows += `<div class="field-row"><span class="label">${esc(sig.field_name)}</span><span class="value">Couldn't be checked (${esc(sig.error)})</span></div>`;
+      continue;
+    }
+    const verdict = sig.trusted && sig.intact
+      ? 'Signed and chains to CCA India\'s root - strong evidence this exact PDF is untouched and government-issued.'
+      : sig.intact
+        ? 'Cryptographically intact (untampered since signing), but the signer isn\'t one we can confirm chains to CCA India\'s root yet - not proof either way.'
+        : 'Signature present but does NOT match this file\'s current content - this PDF was modified after being signed.';
+    rows += `<div class="field-row"><span class="label">${esc(sig.field_name)}</span><span class="value">${esc(sig.signer || 'unknown signer')}</span></div>
+      <div class="field-row"><span class="label"></span><span class="value">${esc(verdict)}</span></div>`;
+  }
+  return `<section class="block"><h2>PDF document signature</h2><div class="field-grid">${rows}</div></section>`;
+}
+
+function renderExtractedOnly(extracted) {
+  if (!extracted) return '';
+  let html = `<section class="block"><h2>Extracted from card (not validated)</h2><div class="field-grid">`;
+  const uidConfirmed = extracted.uid_confirmed_candidates || [];
+  const uidChecksum = extracted.uid_checksum_valid_candidates || [];
+  html += fieldRowWithBadge('UID', uidConfirmed[0] || uidChecksum[0], uidConfirmed.length > 0);
+  for (const key of ['name', 'dob', 'gender', 'pincode', 'address']) {
+    const field = extracted[key];
+    if (!field) continue;
+    html += fieldRowWithBadge(capitalize(key), field.value, field.confirmed);
+  }
+  html += `</div></section>`;
+  return html;
+}
+
+function fieldRowWithBadge(label, value, confirmed) {
+  const badge = value
+    ? `<span class="badge ${confirmed ? 'confirmed' : 'unconfirmed'}">${confirmed ? 'Confirmed' : 'Low confidence'}</span>`
+    : '';
+  return `<div class="field-row"><span class="label">${esc(label)}</span><span class="value">${esc(value)}${badge}</span></div>`;
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+</script>
+</body>
+</html>
